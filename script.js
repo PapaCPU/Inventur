@@ -7,18 +7,35 @@ const saveButton = document.getElementById('saveButton');
 const downloadButton = document.getElementById('downloadButton');
 const clearButton = document.getElementById('clearButton');
 
+const ocrResultSection = document.getElementById('ocr-result-section');
+const recognizedNumberEl = document.getElementById('recognizedNumber');
+const confirmButton = document.getElementById('confirmButton');
+const discardButton = document.getElementById('discardButton');
+
+let currentRecognizedNumber = null; // Speichert temporär die erkannte Artikelnummer
+
 processButton.addEventListener('click', handleImage);
 saveButton.addEventListener('click', saveData);
 downloadButton.addEventListener('click', downloadCSV);
 clearButton.addEventListener('click', clearData);
 
+confirmButton.addEventListener('click', confirmRecognition);
+discardButton.addEventListener('click', discardRecognition);
+
 // Beim Laden vorhandene Daten anzeigen
 loadDataFromLocalStorage();
+
+// Validierung beim Focus-Verlust in der Tabelle
+dataTable.addEventListener('focusout', (e) => {
+  if (e.target && e.target.closest('tr')) {
+    validateRow(e.target.closest('tr'));
+  }
+});
 
 async function handleImage() {
   const file = imageInput.files[0];
   if (!file) {
-    alert('Bitte zuerst ein Bild auswählen.');
+    alert('Bitte zuerst ein Bild auswählen oder aufnehmen.');
     return;
   }
 
@@ -29,16 +46,22 @@ async function handleImage() {
     const imageSrc = reader.result;
 
     try {
+      const processedDataURL = await preprocessImage(imageSrc);
+
       // OCR ausführen
-      const { data: { text } } = await Tesseract.recognize(imageSrc, 'deu');
+      const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
       console.log('Erkannter Text:', text);
 
       const artikelnummer = extractArtikelnummer(text);
 
       if (artikelnummer) {
-        addRow(artikelnummer, 0);
-        statusText.textContent = 'Artikelnummer erkannt und hinzugefügt.';
+        currentRecognizedNumber = artikelnummer;
+        recognizedNumberEl.textContent = artikelnummer;
+        ocrResultSection.style.display = 'block';
+        statusText.textContent = 'Artikelnummer erkannt. Bitte bestätigen oder verwerfen.';
       } else {
+        currentRecognizedNumber = null;
+        ocrResultSection.style.display = 'none';
         statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden.';
       }
     } catch (error) {
@@ -59,7 +82,7 @@ function extractArtikelnummer(text) {
 function addRow(artikelnummer, anzahl) {
   const row = document.createElement('tr');
   row.innerHTML = `
-    <td>${artikelnummer}</td>
+    <td contenteditable="true">${artikelnummer}</td>
     <td contenteditable="true">${anzahl}</td>
     <td><button class="button delete-button">Löschen</button></td>
   `;
@@ -69,9 +92,16 @@ function addRow(artikelnummer, anzahl) {
   row.querySelector('.delete-button').addEventListener('click', () => {
     dataTable.removeChild(row);
   });
+
+  // Direkt validieren
+  validateRow(row);
 }
 
 function saveData() {
+  if (!confirm('Daten jetzt wirklich speichern?')) {
+    return;
+  }
+
   const data = [];
   dataTable.querySelectorAll('tr').forEach(row => {
     const artikelnummer = row.children[0].textContent.trim();
@@ -118,4 +148,76 @@ function clearData() {
     dataTable.innerHTML = '';
     alert('Daten gelöscht!');
   }
+}
+
+function confirmRecognition() {
+  if (currentRecognizedNumber) {
+    addRow(currentRecognizedNumber, 0);
+  }
+  // Danach das Result-Feld ausblenden und Variablen zurücksetzen
+  ocrResultSection.style.display = 'none';
+  currentRecognizedNumber = null;
+  statusText.textContent = '';
+}
+
+function discardRecognition() {
+  // Abbrechen, nichts hinzufügen
+  ocrResultSection.style.display = 'none';
+  currentRecognizedNumber = null;
+  statusText.textContent = '';
+}
+
+// Validierung der Artikelnummern
+function validateRow(row) {
+  const artikelnummer = row.children[0].textContent.trim();
+  const artikelValid = /\b\d{6}-\d{6}\b/.test(artikelnummer);
+
+  if (!artikelValid) {
+    row.children[0].classList.add('invalid');
+  } else {
+    row.children[0].classList.remove('invalid');
+  }
+}
+
+// Einfache Bildvorverarbeitung (Grayscale + Thresholding + Skalierung)
+async function preprocessImage(dataURL) {
+  const img = new Image();
+  return new Promise((resolve) => {
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+
+      // Skalierung auf Breite 800px für bessere Performance (anpassbar)
+      const scale = 800 / img.width;
+      const newWidth = 800;
+      const newHeight = img.height * scale;
+
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+      // Pixel auslesen
+      const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+      const data = imageData.data;
+
+      // Graustufen + einfaches Thresholding
+      // Threshold = 128 als Beispiel
+      const threshold = 128;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        const grayscale = 0.3*r + 0.59*g + 0.11*b;
+        const val = grayscale < threshold ? 0 : 255;
+        data[i] = val;
+        data[i+1] = val;
+        data[i+2] = val;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = dataURL;
+  });
 }
