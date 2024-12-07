@@ -28,16 +28,28 @@ h1 {
   box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
 }
 
-#upload-section {
-  margin-bottom: 1.5rem;
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  align-items: center;
+.video-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
 }
 
-#upload-section input[type='file'] {
-  flex: 1;
+#video {
+  width: 100%;
+  transform: scaleX(-1); /* optional: front camera mirror */
+}
+
+.overlay-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #00ff00;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .button {
@@ -49,6 +61,7 @@ h1 {
   cursor: pointer;
   text-align: center;
   font-size: 1rem;
+  margin-top: 1rem;
 }
 
 .button:hover {
