@@ -1,372 +1,54 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
-    <title>Inventur App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f7f7f7;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-
-        header {
-            background: #e0e0e0;
-            padding: 1em;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 1.2em;
-            font-weight: normal;
-            color: #333;
-        }
-
-        .container {
-            padding: 1em;
-        }
-
-        .upload-section, .table-section {
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 1em;
-            margin-bottom: 1em;
-        }
-
-        .upload-section {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5em;
-        }
-
-        .upload-section label {
-            font-size: 0.9em;
-            color: #444;
-        }
-
-        .upload-section input[type="file"] {
-            padding: 0.5em;
-            border: 1px solid #ccc;
-            background: #fff;
-            font-size: 0.9em;
-        }
-
-        button {
-            background: #ccc;
-            border: none;
-            padding: 0.7em 1em;
-            cursor: pointer;
-            font-size: 0.9em;
-            color: #333;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #bbb;
-        }
-
-        .table-section .table-controls {
-            display: flex;
-            align-items: center;
-            gap: 1em;
-            margin-bottom: 1em;
-            flex-wrap: wrap;
-        }
-
-        .table-section .table-controls input[type="text"] {
-            padding: 0.5em;
-            border: 1px solid #ccc;
-            font-size: 0.9em;
-        }
-
-        .format-section {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5em;
-            align-items: baseline;
-        }
-
-        .format-section input[type="text"] {
-            width: 140px;
-            padding: 0.3em;
-            border: 1px solid #ccc;
-            font-size: 0.9em;
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9em;
-        }
-
-        .results-table th, .results-table td {
-            border-bottom: 1px solid #eee;
-            padding: 0.5em;
-            text-align: left;
-        }
-
-        .results-table th {
-            background: #f2f2f2;
-            font-weight: normal;
-            color: #333;
-        }
-
-        .results-table td input[type="number"] {
-            width: 60px;
-            padding: 0.2em;
-            border: 1px solid #ccc;
-        }
-
-        .action-btn {
-            background: #ddd;
-            padding: 0.2em 0.5em;
-            font-size: 0.8em;
-        }
-
-        @media (max-width: 600px) {
-            header h1 {
-                font-size: 1em;
-            }
-            .table-section .table-controls, .upload-section {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .results-table th, .results-table td {
-                font-size: 0.8em;
-            }
-        }
-
-        .message {
-            margin-top: 0.5em;
-            font-size: 0.8em;
-            color: #666;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventur App</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <header>
+    <h1>Inventur App</h1>
+  </header>
 
-<header>
-    <h1>Inventur-App</h1>
-</header>
+  <main>
+    <section id="upload-section">
+      <input type="file" id="imageInput" accept="image/*">
+      <button id="processButton" class="button">Bild verarbeiten</button>
+    </section>
 
-<div class="container">
+    <section id="status-section">
+      <p id="statusText"></p>
+    </section>
 
-    <div class="upload-section">
-        <label for="imageInput">Bilder hochladen (mehrere möglich):</label>
-        <input type="file" id="imageInput" multiple accept="image/*">
-        <button id="extractBtn">Artikelnummern extrahieren</button>
-        <div class="message" id="statusMsg"></div>
-    </div>
+    <section id="table-section">
+      <table>
+        <thead>
+          <tr>
+            <th>Artikelnummer</th>
+            <th>Anzahl</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable">
+          <!-- Dynamische Einträge -->
+        </tbody>
+      </table>
+    </section>
 
-    <div class="table-section">
-        <div class="table-controls">
-            <div>
-                <label for="tableName">Name der Tabelle:</label>
-                <input type="text" id="tableName" placeholder="z.B. Inventur_2024">
-            </div>
-            <button id="saveLocalBtn">CSV in LocalStorage speichern</button>
-            <button id="exportCsvBtn">CSV exportieren</button>
-        </div>
+    <section id="menu-section">
+      <button id="saveButton" class="button">Daten speichern</button>
+      <button id="downloadButton" class="button">CSV herunterladen</button>
+      <button id="clearButton" class="button">Daten löschen</button>
+    </section>
+  </main>
 
-        <div class="format-section">
-            <label for="formatPattern">Formatmuster für Artikelnummer (optional):</label>
-            <input type="text" id="formatPattern" placeholder="z.B. ####-####-####">
-            <button id="applyFormatBtn">Format anwenden</button>
-        </div>
+  <footer>
+    <p>&copy; 2024 Inventur App</p>
+  </footer>
 
-        <table class="results-table" id="resultsTable">
-            <thead>
-                <tr>
-                    <th>Artikelnummer</th>
-                    <th>Anzahl</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Dynamische Einträge -->
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Tesseract.js CDN -->
-<script src="https://unpkg.com/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
-<script>
-    const imageInput = document.getElementById('imageInput');
-    const extractBtn = document.getElementById('extractBtn');
-    const resultsTable = document.getElementById('resultsTable').querySelector('tbody');
-    const saveLocalBtn = document.getElementById('saveLocalBtn');
-    const exportCsvBtn = document.getElementById('exportCsvBtn');
-    const tableNameInput = document.getElementById('tableName');
-    const formatPatternInput = document.getElementById('formatPattern');
-    const applyFormatBtn = document.getElementById('applyFormatBtn');
-    const statusMsg = document.getElementById('statusMsg');
-
-    let entries = []; 
-    // Format: { artikelnummer: 'xxxxxxxxxxxx', anzahl: x }
-
-    async function ocrImage(file) {
-        return new Promise((resolve, reject) => {
-            Tesseract.recognize(
-                file,
-                'deu', 
-                { logger: m => console.log(m) }
-            ).then(({ data: { text } }) => {
-                resolve(text);
-            }).catch(err => reject(err));
-        });
-    }
-
-    function extractArtikelnummer(text) {
-        // Einfache Regex um eine 12-stellige Nummer zu finden
-        const regex = /\b\d{12}\b/g;
-        const match = text.match(regex);
-        if (match && match.length > 0) {
-            return match[0];
-        }
-        return null;
-    }
-
-    function addRowToTable(artikelnummer, anzahl = '') {
-        const tr = document.createElement('tr');
-
-        const tdArtikel = document.createElement('td');
-        tdArtikel.textContent = artikelnummer;
-
-        const tdAnzahl = document.createElement('td');
-        const inputAnzahl = document.createElement('input');
-        inputAnzahl.type = 'number';
-        inputAnzahl.value = anzahl;
-        inputAnzahl.min = '0';
-        inputAnzahl.addEventListener('change', () => {
-            const index = Array.from(resultsTable.children).indexOf(tr);
-            entries[index].anzahl = parseInt(inputAnzahl.value, 10) || 0;
-        });
-        tdAnzahl.appendChild(inputAnzahl);
-
-        const tdActions = document.createElement('td');
-        const delBtn = document.createElement('button');
-        delBtn.textContent = "Löschen";
-        delBtn.className = 'action-btn';
-        delBtn.addEventListener('click', () => {
-            const index = Array.from(resultsTable.children).indexOf(tr);
-            entries.splice(index, 1);
-            tr.remove();
-        });
-        tdActions.appendChild(delBtn);
-
-        tr.appendChild(tdArtikel);
-        tr.appendChild(tdAnzahl);
-        tr.appendChild(tdActions);
-        resultsTable.appendChild(tr);
-    }
-
-    async function handleExtract() {
-        const files = imageInput.files;
-        if (!files || files.length === 0) {
-            alert("Bitte erst Bilder auswählen.");
-            return;
-        }
-
-        statusMsg.textContent = "Verarbeite Bilder, bitte warten...";
-        for (let file of files) {
-            try {
-                let text = await ocrImage(file);
-                let artikelNr = extractArtikelnummer(text);
-                if (artikelNr) {
-                    entries.push({ artikelnummer: artikelNr, anzahl: 0 });
-                    addRowToTable(artikelNr, 0);
-                } else {
-                    console.warn("Keine 12-stellige Artikelnummer gefunden im Bild:", file.name);
-                }
-            } catch (err) {
-                console.error("Fehler bei der OCR-Erkennung:", err);
-            }
-        }
-        imageInput.value = '';
-        statusMsg.textContent = "Fertig. Überprüfe die erkannten Artikelnummern.";
-    }
-
-    function saveToLocal() {
-        const name = tableNameInput.value.trim() || 'Tabelle';
-        const csv = convertToCSV(entries);
-        localStorage.setItem(name, csv);
-        alert("CSV unter '" + name + "' in localStorage gespeichert.");
-    }
-
-    function exportCSV() {
-        const name = tableNameInput.value.trim() || 'Tabelle';
-        const csv = convertToCSV(entries);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = name + ".csv";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    function convertToCSV(data) {
-        let csv = "Artikelnummer,Anzahl\n";
-        data.forEach(row => {
-            csv += `${row.artikelnummer},${row.anzahl}\n`;
-        });
-        return csv;
-    }
-
-    function applyNumberFormat() {
-        const pattern = formatPatternInput.value;
-        if (!pattern) {
-            alert("Bitte ein Formatmuster eingeben (z.B. ####-####-####).");
-            return;
-        }
-
-        // Formatierung: Ersetzt '#' im Muster mit den Ziffern der Artikelnummer
-        // Muster sollte genauso viele '#' enthalten, wie es Ziffern in der Artikelnummer gibt (hier 12)
-        // Beispiel: ####-####-#### für eine 12-stellige Nummer
-        for (let i = 0; i < entries.length; i++) {
-            const rawNum = entries[i].artikelnummer.replace(/\D/g, ''); // Nur Ziffern
-            if (rawNum.length === 12 && (pattern.match(/#/g) || []).length === 12) {
-                let formatted = '';
-                let rawIndex = 0;
-                for (let ch of pattern) {
-                    if (ch === '#') {
-                        formatted += rawNum[rawIndex++];
-                    } else {
-                        formatted += ch;
-                    }
-                }
-                entries[i].artikelnummer = formatted;
-            } else {
-                console.warn("Artikelnummer oder Muster passt nicht. Übersprungen:", entries[i].artikelnummer);
-            }
-        }
-
-        // Tabelle neu aufbauen
-        while (resultsTable.firstChild) {
-            resultsTable.removeChild(resultsTable.firstChild);
-        }
-
-        entries.forEach(e => {
-            addRowToTable(e.artikelnummer, e.anzahl);
-        });
-    }
-
-    extractBtn.addEventListener('click', handleExtract);
-    saveLocalBtn.addEventListener('click', saveToLocal);
-    exportCsvBtn.addEventListener('click', exportCSV);
-    applyFormatBtn.addEventListener('click', applyNumberFormat);
-</script>
-
+  <!-- Tesseract.js laden -->
+  <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
