@@ -12,35 +12,46 @@
   </header>
 
   <main>
-    <section id="upload-section">
-      <input type="file" id="imageInput" accept="image/*">
-      <button id="processButton" class="button">Bild verarbeiten</button>
-    </section>
+    <div class="container">
+      <section id="upload-section">
+        <input type="file" id="imageInput" accept="image/*" capture="camera">
+        <button id="processButton" class="button primary-button">Bild verarbeiten</button>
+      </section>
 
-    <section id="status-section">
-      <p id="statusText"></p>
-    </section>
+      <section id="status-section">
+        <p id="statusText"></p>
+      </section>
 
-    <section id="table-section">
-      <table>
-        <thead>
-          <tr>
-            <th>Artikelnummer</th>
-            <th>Anzahl</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody id="dataTable">
-          <!-- Dynamische Einträge -->
-        </tbody>
-      </table>
-    </section>
+      <section id="ocr-result-section" style="display:none;">
+        <h2>Erkannte Artikelnummer:</h2>
+        <p id="recognizedNumber"></p>
+        <div class="actions">
+          <button id="confirmButton" class="button confirm-button">Bestätigen</button>
+          <button id="discardButton" class="button delete-button">Verwerfen</button>
+        </div>
+      </section>
 
-    <section id="menu-section">
-      <button id="saveButton" class="button">Daten speichern</button>
-      <button id="downloadButton" class="button">CSV herunterladen</button>
-      <button id="clearButton" class="button">Daten löschen</button>
-    </section>
+      <section id="table-section">
+        <table>
+          <thead>
+            <tr>
+              <th>Artikelnummer</th>
+              <th>Anzahl</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="dataTable">
+            <!-- Dynamische Einträge -->
+          </tbody>
+        </table>
+      </section>
+
+      <section id="menu-section">
+        <button id="saveButton" class="button primary-button">Daten speichern</button>
+        <button id="downloadButton" class="button">CSV herunterladen</button>
+        <button id="clearButton" class="button delete-button">Daten löschen</button>
+      </section>
+    </div>
   </main>
 
   <footer>
