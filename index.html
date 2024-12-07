@@ -1,393 +1,366 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Artikelscanner</title>
-    <script src="https://unpkg.com/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #d3d3d3;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        #video-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin: 20px auto;
-        }
-        #video {
-            width: 100%;
-            height: auto;
-        }
-        #overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 80%;
-            max-width: 300px;
-            height: 100px;
-            transform: translate(-50%, -50%);
-            border: 2px solid red;
-        }
-        #menu, #list-section, #back-button {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .button {
-            background-color: #f0f8ff;
-            border: none;
-            color: black;
-            padding: 20px 40px;
-            text-align: center;
-            text-decoration: none;
-            display: block;
-            font-size: 24px;
-            margin: 20px auto;
-            cursor: pointer;
-            border-radius: 12px;
-            width: 80%;
-            max-width: 400px;
-        }
-        #data-display {
-            margin-top: 20px;
-            max-width: 600px;
-            margin: auto;
-            overflow-y: auto;
-            max-height: 300px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid black;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-        }
-        #export-button {
-            margin-top: 20px;
-        }
-        #back-button {
-            display: none;
-            margin: 10px auto;
-        }
-        .action-buttons {
-            display: flex;
-            justify-content: space-around;
-        }
-        @media (max-width: 600px) {
-            .button {
-                font-size: 18px;
-                padding: 15px 30px;
-            }
-            #data-display {
-                max-height: 200px;
-            }
-        }
-        .icon-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        input[type=number] {
-            font-size: 16px;
-            inputmode: numeric;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 400px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventur Scanner</title>
+  <style>
+    body {
+      font-family: 'Helvetica', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #fafafa;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(90deg, #999, #ccc);
+      text-align: center;
+      padding: 1rem;
+      box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+    }
+    .video-container {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    #video {
+      width: 100%;
+      transform: scaleX(-1); 
+    }
+    .overlay-frame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200px;
+      height: 100px;
+      transform: translate(-50%, -50%);
+      border: 2px solid #00ff00;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .button {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: #d0d0d0;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+    .button:hover {
+      background-color: #bfbfbf;
+    }
+    .primary-button {
+      background-color: #4a90e2;
+      color: #fff;
+    }
+    .primary-button:hover {
+      background-color: #3b78b5;
+    }
+    .delete-button {
+      background-color: #f66;
+      color: #fff;
+    }
+    .delete-button:hover {
+      background-color: #d55;
+    }
+    .confirm-button {
+      background-color: #5cb85c;
+      color: #fff;
+    }
+    .confirm-button:hover {
+      background-color: #4e9a4e;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+      border: 1px solid #eee;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+    table th, table td {
+      border: 1px solid #eee;
+      padding: 0.5rem;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    td[contenteditable="true"] {
+      background-color: #f9f9f9;
+    }
+    .invalid {
+      background-color: #ffdddd !important;
+    }
+    #status-section {
+      margin-bottom: 1rem;
+      min-height: 20px;
+    }
+    #ocr-result-section {
+      margin-bottom: 1.5rem;
+      background-color: #f8f8f8;
+      padding: 1rem;
+      border-radius: 5px;
+      display: none;
+    }
+    .actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      background-color: #ddd;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 600px) {
+      .container {
+        margin: 1rem;
+      }
+      table, th, td {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div id="menu">
-        <button class="button" onclick="startNewList()">Neue Liste</button>
-        <button class="button" onclick="showList()">Bearbeiten</button>
+  <header>
+    <h1>Inventur Scanner</h1>
+  </header>
+  <div class="container">
+    <div id="status-section">
+      <span id="statusText"></span>
     </div>
-    <div id="back-button">
-        <button class="button" onclick="goBack()">Zurück</button>
+    <div class="video-container">
+      <video id="video" autoplay playsinline></video>
+      <div class="overlay-frame"></div>
     </div>
-    <div id="video-container" style="display:none;">
-        <video id="video" autoplay playsinline></video>
-        <div id="overlay"></div>
+    <button id="captureButton" class="button primary-button">Scannen</button>
+    <div id="ocr-result-section">
+      <p>Erkannte Artikelnummer: <span id="recognizedNumber"></span></p>
+      <button id="confirmButton" class="button confirm-button">Bestätigen</button>
+      <button id="discardButton" class="button delete-button">Verwerfen</button>
     </div>
-    <button id="capture-button" class="button" style="display:none;" onclick="captureAndRecognize()">Scannen</button>
-    <div id="input-modal" class="modal">
-        <div class="modal-content">
-            <h2>Stückzahl eingeben</h2>
-            <p>Gescannter Code: <span id="scanned-code"></span></p>
-            <input type="number" id="quantity" name="quantity" inputmode="numeric">
-            <button class="button" onclick="submitData()">Bestätigen</button>
-            <button class="button" onclick="closeModal()">Abbrechen</button>
-        </div>
+    <table id="dataTable"></table>
+    <div class="actions">
+      <button id="saveButton" class="button primary-button">Speichern</button>
+      <button id="downloadButton" class="button">CSV Export</button>
+      <button id="clearButton" class="button delete-button">Daten löschen</button>
     </div>
-    <div id="list-section" style="display: none;"></div>
-    <div id="data-display"></div>
-    <button id="export-button" class="button" onclick="exportData()" style="display: none;">Daten exportieren</button>
-    <div id="popup" style="display: none;">
-        <p>Möchten Sie diesen Eintrag wirklich löschen?</p>
-        <button class="button" onclick="confirmDelete(true)">Ja</button>
-        <button class="button" onclick="confirmDelete(false)">Nein</button>
-    </div>
-    <script>
-        let scannedCode = '';
-        let isEditing = false;
-        let editingIndex = -1;
-        let deleteIndex = -1;
-        let videoStream = null;
-
-        function startNewList() {
-            localStorage.removeItem('scannedData');
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('video-container').style.display = 'block';
-            document.getElementById('back-button').style.display = 'block';
-            document.getElementById('capture-button').style.display = 'block';
-            startVideo();
+  </div>
+  <footer>
+    &copy; 2024 Inventur Scanner
+  </footer>
+  <script src="https://unpkg.com/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const captureButton = document.getElementById('captureButton');
+    const statusText = document.getElementById('statusText');
+    const dataTable = document.getElementById('dataTable');
+    const ocrResultSection = document.getElementById('ocr-result-section');
+    const recognizedNumberEl = document.getElementById('recognizedNumber');
+    const confirmButton = document.getElementById('confirmButton');
+    const discardButton = document.getElementById('discardButton');
+    const saveButton = document.getElementById('saveButton');
+    const downloadButton = document.getElementById('downloadButton');
+    const clearButton = document.getElementById('clearButton');
+    let currentRecognizedNumber = null;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch(err => {
+        console.error("Kamerazugriff verweigert oder nicht möglich:", err);
+        alert("Kamera kann nicht gestartet werden.");
+      });
+    captureButton.addEventListener('click', captureFrame);
+    confirmButton.addEventListener('click', confirmRecognition);
+    discardButton.addEventListener('click', discardRecognition);
+    saveButton.addEventListener('click', saveData);
+    downloadButton.addEventListener('click', downloadCSV);
+    clearButton.addEventListener('click', clearData);
+    dataTable.addEventListener('focusout', (e) => {
+      if (e.target && e.target.closest('tr')) {
+        validateRow(e.target.closest('tr'));
+      }
+    });
+    loadDataFromLocalStorage();
+    async function captureFrame() {
+      statusText.textContent = 'Verarbeite Bild...';
+      const canvas = document.createElement('canvas');
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      const frameWidth = 200;
+      const frameHeight = 100;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const startX = centerX - frameWidth / 2;
+      const startY = centerY - frameHeight / 2;
+      const frameData = ctx.getImageData(startX, startY, frameWidth, frameHeight);
+      const frameCanvas = document.createElement('canvas');
+      frameCanvas.width = frameWidth;
+      frameCanvas.height = frameHeight;
+      const frameCtx = frameCanvas.getContext('2d');
+      frameCtx.putImageData(frameData, 0, 0);
+      const processedDataURL = await preprocessImage(frameCanvas.toDataURL('image/png'));
+      try {
+        const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
+        const artikelnummer = extractArtikelnummer(text);
+        if (artikelnummer) {
+          currentRecognizedNumber = artikelnummer;
+          recognizedNumberEl.textContent = artikelnummer;
+          ocrResultSection.style.display = 'block';
+          statusText.textContent = 'Artikelnummer erkannt. Bitte bestätigen oder verwerfen.';
+        } else {
+          currentRecognizedNumber = null;
+          ocrResultSection.style.display = 'none';
+          statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden.';
         }
-
-        function startVideo() {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(stream => {
-                videoStream = stream;
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                video.play();
-            })
-            .catch(err => {
-                console.error(err);
-            });
+      } catch (error) {
+        console.error('Fehler bei der Texterkennung:', error);
+        statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
+      }
+    }
+    function extractArtikelnummer(text) {
+      const match = text.match(/\b\d{6}-\d{6}\b/);
+      return match ? match[0] : null;
+    }
+    function addRow(artikelnummer, anzahl) {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td contenteditable="true">${artikelnummer}</td>
+        <td contenteditable="true">${anzahl}</td>
+        <td><button class="button delete-button">Löschen</button></td>
+      `;
+      dataTable.appendChild(row);
+      row.querySelector('.delete-button').addEventListener('click', () => {
+        dataTable.removeChild(row);
+      });
+      validateRow(row);
+    }
+    function confirmRecognition() {
+      if (currentRecognizedNumber) {
+        addRow(currentRecognizedNumber, 0);
+      }
+      ocrResultSection.style.display = 'none';
+      currentRecognizedNumber = null;
+      statusText.textContent = '';
+    }
+    function discardRecognition() {
+      ocrResultSection.style.display = 'none';
+      currentRecognizedNumber = null;
+      statusText.textContent = '';
+    }
+    function saveData() {
+      if (!confirm('Daten jetzt wirklich speichern?')) {
+        return;
+      }
+      const data = [];
+      dataTable.querySelectorAll('tr').forEach(row => {
+        const artikelnummer = row.children[0].textContent.trim();
+        const anzahl = row.children[1].textContent.trim();
+        if (artikelnummer && anzahl) {
+          data.push({ artikelnummer, anzahl });
         }
-
-        function showList() {
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('list-section').style.display = 'block';
-            document.getElementById('back-button').style.display = 'block';
-            displayList();
-        }
-
-        function displayList() {
-            const listSection = document.getElementById('list-section');
-            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
-            if (existingData.length === 0) {
-                listSection.innerHTML = '<p>Keine gespeicherten Listen.</p>';
-                return;
-            }
-            let listHtml = '<table><tr><th>Liste</th><th>Aktion</th></tr>';
-            existingData.forEach((list, index) => {
-                listHtml += `<tr><td>${list.name}</td>
-                <td class="action-buttons">
-                <button class="button" onclick="continueList(${index})">Weiter bearbeiten</button>
-                <button class="button" onclick="deleteList(${index})">Liste löschen</button>
-                </td></tr>`;
-            });
-            listHtml += '</table>';
-            listSection.innerHTML = listHtml;
-        }
-
-        function continueList(index) {
-            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
-            localStorage.setItem('scannedData', JSON.stringify(existingData[index].data));
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('list-section').style.display = 'none';
-            document.getElementById('video-container').style.display = 'block';
-            document.getElementById('back-button').style.display = 'block';
-            document.getElementById('capture-button').style.display = 'block';
-            startVideo();
-            displayData();
-        }
-
-        function deleteList(index) {
-            if (confirm("Sind Sie sicher, dass Sie diese Liste löschen möchten?")) {
-                let existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
-                existingData.splice(index, 1);
-                localStorage.setItem('scannedDataList', JSON.stringify(existingData));
-                displayList();
-            }
-        }
-
-        function captureAndRecognize() {
-            const video = document.getElementById('video');
-            const overlay = document.getElementById('overlay');
-            const canvas = document.createElement('canvas');
-            const rect = overlay.getBoundingClientRect();
-            const videoRect = video.getBoundingClientRect();
-
-            const scaleX = video.videoWidth / videoRect.width;
-            const scaleY = video.videoHeight / videoRect.height;
-
-            const cropX = (rect.left - videoRect.left) * scaleX;
-            const cropY = (rect.top - videoRect.top) * scaleY;
-            const cropWidth = rect.width * scaleX;
-            const cropHeight = rect.height * scaleY;
-
-            canvas.width = cropWidth;
-            canvas.height = cropHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-            Tesseract.recognize(canvas.toDataURL('image/png'), 'eng', { logger: m => {} })
-            .then(({ data: { text } }) => {
-                const match = text.match(/\b\d{6}-\d{6}\b/);
-                if (match) {
-                    scannedCode = match[0];
-                    document.getElementById("scanned-code").textContent = scannedCode;
-                    document.getElementById("input-modal").style.display = "block";
-                    document.getElementById('quantity').value = '';
-                    document.getElementById('quantity').focus();
-                } else {
-                    alert('Keine gültige Artikelnummer gefunden.');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-            });
-        }
-
-        function submitData() {
-            const quantity = document.getElementById('quantity').value;
-            if (scannedCode && quantity) {
-                let data = JSON.parse(localStorage.getItem('scannedData') || '[]');
-                if (isEditing) {
-                    data[editingIndex].quantity = quantity;
-                    isEditing = false;
-                    editingIndex = -1;
-                } else {
-                    data.push({ code: scannedCode, quantity: quantity });
-                }
-                localStorage.setItem('scannedData', JSON.stringify(data));
-                displayData();
-                closeModal();
-            } else {
-                alert('Bitte scannen Sie einen Code und geben Sie eine Stückzahl ein.');
-            }
-        }
-
-        function closeModal() {
-            document.getElementById("input-modal").style.display = "none";
-        }
-
-        function displayData() {
-            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
-            const display = document.getElementById('data-display');
-            if (data.length === 0) {
-                display.innerHTML = '<p>Keine gespeicherten Daten.</p>';
-                document.getElementById('export-button').style.display = 'none';
-                return;
-            }
-            let tableHtml = '<table><tr><th>Code</th><th>Stückzahl</th><th>Aktion</th></tr>';
-            data.forEach((row, index) => {
-                tableHtml += `<tr><td>${row.code}</td><td>${row.quantity}</td>
-                <td class="action-buttons">
-                <button class="icon-button" onclick="editItem(${index})">✏️</button>
-                <button class="icon-button" onclick="confirmDeleteItem(${index})">🗑️</button>
-                </td></tr>`;
-            });
-            tableHtml += '</table>';
-            display.innerHTML = tableHtml;
-            if (data.length > 0) {
-                document.getElementById('export-button').style.display = 'block';
-            }
-        }
-
-        function editItem(index) {
-            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
-            const item = data[index];
-            scannedCode = item.code;
-            document.getElementById('scanned-code').textContent = scannedCode;
-            document.getElementById('quantity').value = item.quantity;
-            document.getElementById('input-modal').style.display = 'block';
-            document.getElementById('quantity').focus();
-            document.getElementById('quantity').select();
-            isEditing = true;
-            editingIndex = index;
-        }
-
-        function confirmDeleteItem(index) {
-            deleteIndex = index;
-            document.getElementById('popup').style.display = 'block';
-        }
-
-        function confirmDelete(confirm) {
-            if (confirm && deleteIndex !== -1) {
-                let data = JSON.parse(localStorage.getItem('scannedData') || '[]');
-                data.splice(deleteIndex, 1);
-                localStorage.setItem('scannedData', JSON.stringify(data));
-                displayData();
-            }
-            document.getElementById('popup').style.display = 'none';
-            deleteIndex = -1;
-        }
-
-        function exportData() {
-            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
-            if (data.length === 0) {
-                alert('Keine Daten zum Exportieren');
-                return;
-            }
-            let csvContent = "data:text/csv;charset=utf-8,code,quantity\n";
-            data.forEach(row => {
-                csvContent += `${row.code},${row.quantity}\n`;
-            });
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `scanned_data_${new Date().toISOString().slice(0, 10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            saveList(data);
-        }
-
-        function saveList(data) {
-            const listName = `Liste_${new Date().toISOString().slice(0, 10)}`;
-            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
-            existingData.push({ name: listName, data: data });
-            if (existingData.length > 10) {
-                existingData.shift();
-            }
-            localStorage.setItem('scannedDataList', JSON.stringify(existingData));
-        }
-
-        function goBack() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
-            document.getElementById('menu').style.display = 'block';
-            document.getElementById('video-container').style.display = 'none';
-            document.getElementById('capture-button').style.display = 'none';
-            document.getElementById('input-modal').style.display = 'none';
-            document.getElementById('list-section').style.display = 'none';
-            document.getElementById('back-button').style.display = 'none';
-            displayData();
-        }
-
-        window.onload = () => {
-            document.getElementById('menu').style.display = 'block';
+      });
+      localStorage.setItem('inventurData', JSON.stringify(data));
+      alert('Daten gespeichert!');
+    }
+    function loadDataFromLocalStorage() {
+      const storedData = JSON.parse(localStorage.getItem('inventurData') || '[]');
+      storedData.forEach(entry => {
+        addRow(entry.artikelnummer, entry.anzahl);
+      });
+    }
+    function downloadCSV() {
+      const data = JSON.parse(localStorage.getItem('inventurData') || '[]');
+      if (data.length === 0) {
+        alert('Keine Daten vorhanden.');
+        return;
+      }
+      const csvContent = "data:text/csv;charset=utf-8," +
+        "Artikelnummer,Anzahl\n" +
+        data.map(e => `${e.artikelnummer},${e.anzahl}`).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "inventur.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    function clearData() {
+      if (confirm('Alle Daten löschen?')) {
+        localStorage.removeItem('inventurData');
+        dataTable.innerHTML = '';
+        alert('Daten gelöscht!');
+      }
+    }
+    function validateRow(row) {
+      const artikelnummer = row.children[0].textContent.trim();
+      const artikelValid = /\b\d{6}-\d{6}\b/.test(artikelnummer);
+      if (!artikelValid) {
+        row.children[0].classList.add('invalid');
+      } else {
+        row.children[0].classList.remove('invalid');
+      }
+    }
+    async function preprocessImage(dataURL) {
+      const img = new Image();
+      return new Promise((resolve) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const scale = 2;
+          const newWidth = img.width * scale;
+          const newHeight = img.height * scale;
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, newWidth, newHeight);
+          const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+          const data = imageData.data;
+          const threshold = 128;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            const grayscale = 0.3*r + 0.59*g + 0.11*b;
+            const val = grayscale < threshold ? 0 : 255;
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
         };
-    </script>
+        img.src = dataURL;
+      });
+    }
+  </script>
 </body>
 </html>
