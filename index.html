@@ -244,16 +244,15 @@
       const frameCtx = frameCanvas.getContext('2d');
       frameCtx.putImageData(frameData, 0, 0);
 
-      // Stoppe Video nach dem Scannen für bessere Performance
-      stopVideo();
-
       // Zeige den Ausschnitt
       capturedImageEl.src = frameCanvas.toDataURL('image/png');
-      
-      // Vorverarbeiten und OCR
-      const processedDataURL = await preprocessImage(frameCanvas.toDataURL('image/png'));
+
+      // Direkte OCR ohne Vorverarbeitung
       try {
-        const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
+        const { data: { text } } = await Tesseract.recognize(frameCanvas.toDataURL('image/png'), 'eng', {
+          tessedit_char_whitelist: '0123456789-',
+          psm: 7
+        });
         const artikelnummer = extractArtikelnummer(text);
         if (artikelnummer) {
           currentRecognizedNumber = artikelnummer;
@@ -268,12 +267,6 @@
       } catch (error) {
         console.error('Fehler bei der Texterkennung:', error);
         statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
-      }
-    }
-
-    function stopVideo() {
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
       }
     }
 
@@ -368,38 +361,6 @@
       } else {
         row.children[0].classList.remove('invalid');
       }
-    }
-
-    async function preprocessImage(dataURL) {
-      const img = new Image();
-      return new Promise((resolve) => {
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const scale = 2;
-          const newWidth = img.width * scale;
-          const newHeight = img.height * scale;
-          canvas.width = newWidth;
-          canvas.height = newHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, newWidth, newHeight);
-          const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
-          const data = imageData.data;
-          const threshold = 128;
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i+1];
-            const b = data[i+2];
-            const grayscale = 0.3*r + 0.59*g + 0.11*b;
-            const val = grayscale < threshold ? 0 : 255;
-            data[i] = val;
-            data[i+1] = val;
-            data[i+2] = val;
-          }
-          ctx.putImageData(imageData, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        img.src = dataURL;
-      });
     }
   </script>
 </body>
