@@ -129,6 +129,7 @@
       margin-top: 1rem;
       display: flex;
       gap: 1rem;
+      flex-wrap: wrap;
     }
     footer {
       text-align: center;
@@ -156,6 +157,7 @@
       width: 80%; 
       max-width: 300px;
       border-radius: 8px;
+      text-align: center;
     }
     .modal-content input {
       width: 100%;
@@ -197,18 +199,31 @@
       <button id="saveButton" class="button primary-button">Speichern</button>
       <button id="downloadButton" class="button">CSV Export</button>
       <button id="clearButton" class="button delete-button">Daten löschen</button>
+      <button id="manualAddButton" class="button">Manuell hinzufügen</button>
     </div>
   </div>
   <footer>
     &copy; 2024 Inventur Scanner
   </footer>
   
+  <!-- Modals -->
   <div id="quantityModal" class="modal">
     <div class="modal-content">
       <h3>Stückzahl eingeben</h3>
       <p id="modalCode"></p>
       <input type="number" id="quantityInput" placeholder="Anzahl" min="0">
       <button id="quantityConfirm" class="button confirm-button" style="margin-top:1rem;">OK</button>
+    </div>
+  </div>
+
+  <div id="manualModal" class="modal">
+    <div class="modal-content">
+      <h3>Manuell hinzufügen</h3>
+      <p>Artikelnummer (Format: 123456-123456):</p>
+      <input type="text" id="manualCodeInput" placeholder="Artikelnummer">
+      <p>Stückzahl:</p>
+      <input type="number" id="manualQuantityInput" placeholder="Anzahl" min="0">
+      <button id="manualConfirm" class="button confirm-button" style="margin-top:1rem;">OK</button>
     </div>
   </div>
 
@@ -225,11 +240,17 @@
     const downloadButton = document.getElementById('downloadButton');
     const clearButton = document.getElementById('clearButton');
     const capturedImageEl = document.getElementById('captured-image');
+    const manualAddButton = document.getElementById('manualAddButton');
 
     const quantityModal = document.getElementById('quantityModal');
     const quantityConfirm = document.getElementById('quantityConfirm');
     const quantityInput = document.getElementById('quantityInput');
     const modalCode = document.getElementById('modalCode');
+
+    const manualModal = document.getElementById('manualModal');
+    const manualConfirm = document.getElementById('manualConfirm');
+    const manualCodeInput = document.getElementById('manualCodeInput');
+    const manualQuantityInput = document.getElementById('manualQuantityInput');
 
     let currentRecognizedNumber = null;
 
@@ -249,6 +270,8 @@
     saveButton.addEventListener('click', saveData);
     downloadButton.addEventListener('click', downloadCSV);
     clearButton.addEventListener('click', clearData);
+    manualAddButton.addEventListener('click', showManualModal);
+    manualConfirm.addEventListener('click', confirmManualAdd);
 
     dataTable.addEventListener('focusout', (e) => {
       if (e.target && e.target.closest('tr')) {
@@ -284,8 +307,6 @@
 
       capturedImageEl.src = frameCanvas.toDataURL('image/png');
 
-      // Versuche kleine Verbesserung: OCR nur auf Ziffern und Bindestrich
-      // psm=7 (Zeile), tessedit_char_whitelist reduziert den Suchraum
       try {
         const { data: { text } } = await Tesseract.recognize(frameCanvas.toDataURL('image/png'), 'eng', {
           tessedit_char_whitelist: '0123456789-',
@@ -302,11 +323,11 @@
         } else {
           currentRecognizedNumber = null;
           ocrResultSection.style.display = 'none';
-          statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden.';
+          statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden. Sie können die Nummer manuell hinzufügen.';
         }
       } catch (error) {
         console.error('Fehler bei der Texterkennung:', error);
-        statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
+        statusText.textContent = 'Fehler bei der Texterkennung. Sie können die Nummer manuell hinzufügen.';
       }
     }
 
@@ -415,6 +436,31 @@
       if (event.target == quantityModal) {
         quantityModal.style.display = "none";
       }
+      if (event.target == manualModal) {
+        manualModal.style.display = "none";
+      }
+    }
+
+    function showManualModal() {
+      manualCodeInput.value = '';
+      manualQuantityInput.value = '';
+      manualModal.style.display = 'block';
+      manualCodeInput.focus();
+    }
+
+    function confirmManualAdd() {
+      const code = manualCodeInput.value.trim();
+      const qty = manualQuantityInput.value.trim();
+      if (!/\b\d{6}-\d{6}\b/.test(code)) {
+        alert('Bitte eine gültige Artikelnummer eingeben (Format: 123456-123456).');
+        return;
+      }
+      if (!qty || isNaN(qty)) {
+        alert('Bitte eine gültige Stückzahl eingeben.');
+        return;
+      }
+      addRow(code, qty);
+      manualModal.style.display = 'none';
     }
   </script>
 </body>
