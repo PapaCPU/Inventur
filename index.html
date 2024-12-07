@@ -39,7 +39,6 @@
     }
     #video {
       width: 100%;
-      transform: scaleX(-1); 
     }
     .overlay-frame {
       position: absolute;
@@ -120,6 +119,11 @@
       padding: 1rem;
       border-radius: 5px;
       display: none;
+      text-align: center;
+    }
+    #captured-image {
+      max-width: 100%;
+      margin-bottom: 1rem;
     }
     .actions {
       margin-top: 1rem;
@@ -157,6 +161,7 @@
     </div>
     <button id="captureButton" class="button primary-button">Scannen</button>
     <div id="ocr-result-section">
+      <img id="captured-image" src="" alt="Gescannter Ausschnitt">
       <p>Erkannte Artikelnummer: <span id="recognizedNumber"></span></p>
       <button id="confirmButton" class="button confirm-button">Bestätigen</button>
       <button id="discardButton" class="button delete-button">Verwerfen</button>
@@ -173,6 +178,7 @@
   </footer>
   <script src="https://unpkg.com/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
   <script>
+    let videoStream = null;
     const video = document.getElementById('video');
     const captureButton = document.getElementById('captureButton');
     const statusText = document.getElementById('statusText');
@@ -184,9 +190,12 @@
     const saveButton = document.getElementById('saveButton');
     const downloadButton = document.getElementById('downloadButton');
     const clearButton = document.getElementById('clearButton');
+    const capturedImageEl = document.getElementById('captured-image');
     let currentRecognizedNumber = null;
+
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then(stream => {
+        videoStream = stream;
         video.srcObject = stream;
         video.play();
       })
@@ -194,18 +203,22 @@
         console.error("Kamerazugriff verweigert oder nicht möglich:", err);
         alert("Kamera kann nicht gestartet werden.");
       });
+
     captureButton.addEventListener('click', captureFrame);
     confirmButton.addEventListener('click', confirmRecognition);
     discardButton.addEventListener('click', discardRecognition);
     saveButton.addEventListener('click', saveData);
     downloadButton.addEventListener('click', downloadCSV);
     clearButton.addEventListener('click', clearData);
+
     dataTable.addEventListener('focusout', (e) => {
       if (e.target && e.target.closest('tr')) {
         validateRow(e.target.closest('tr'));
       }
     });
+
     loadDataFromLocalStorage();
+
     async function captureFrame() {
       statusText.textContent = 'Verarbeite Bild...';
       const canvas = document.createElement('canvas');
@@ -215,6 +228,8 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, w, h);
+
+      // Berechnungen für das Rechteck
       const frameWidth = 200;
       const frameHeight = 100;
       const centerX = w / 2;
@@ -222,11 +237,20 @@
       const startX = centerX - frameWidth / 2;
       const startY = centerY - frameHeight / 2;
       const frameData = ctx.getImageData(startX, startY, frameWidth, frameHeight);
+
       const frameCanvas = document.createElement('canvas');
       frameCanvas.width = frameWidth;
       frameCanvas.height = frameHeight;
       const frameCtx = frameCanvas.getContext('2d');
       frameCtx.putImageData(frameData, 0, 0);
+
+      // Stoppe Video nach dem Scannen für bessere Performance
+      stopVideo();
+
+      // Zeige den Ausschnitt
+      capturedImageEl.src = frameCanvas.toDataURL('image/png');
+      
+      // Vorverarbeiten und OCR
       const processedDataURL = await preprocessImage(frameCanvas.toDataURL('image/png'));
       try {
         const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
@@ -246,10 +270,18 @@
         statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
       }
     }
+
+    function stopVideo() {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
     function extractArtikelnummer(text) {
       const match = text.match(/\b\d{6}-\d{6}\b/);
       return match ? match[0] : null;
     }
+
     function addRow(artikelnummer, anzahl) {
       const row = document.createElement('tr');
       row.innerHTML = `
@@ -263,6 +295,7 @@
       });
       validateRow(row);
     }
+
     function confirmRecognition() {
       if (currentRecognizedNumber) {
         addRow(currentRecognizedNumber, 0);
@@ -271,11 +304,13 @@
       currentRecognizedNumber = null;
       statusText.textContent = '';
     }
+
     function discardRecognition() {
       ocrResultSection.style.display = 'none';
       currentRecognizedNumber = null;
       statusText.textContent = '';
     }
+
     function saveData() {
       if (!confirm('Daten jetzt wirklich speichern?')) {
         return;
@@ -291,12 +326,14 @@
       localStorage.setItem('inventurData', JSON.stringify(data));
       alert('Daten gespeichert!');
     }
+
     function loadDataFromLocalStorage() {
       const storedData = JSON.parse(localStorage.getItem('inventurData') || '[]');
       storedData.forEach(entry => {
         addRow(entry.artikelnummer, entry.anzahl);
       });
     }
+
     function downloadCSV() {
       const data = JSON.parse(localStorage.getItem('inventurData') || '[]');
       if (data.length === 0) {
@@ -314,6 +351,7 @@
       link.click();
       document.body.removeChild(link);
     }
+
     function clearData() {
       if (confirm('Alle Daten löschen?')) {
         localStorage.removeItem('inventurData');
@@ -321,6 +359,7 @@
         alert('Daten gelöscht!');
       }
     }
+
     function validateRow(row) {
       const artikelnummer = row.children[0].textContent.trim();
       const artikelValid = /\b\d{6}-\d{6}\b/.test(artikelnummer);
@@ -330,6 +369,7 @@
         row.children[0].classList.remove('invalid');
       }
     }
+
     async function preprocessImage(dataURL) {
       const img = new Image();
       return new Promise((resolve) => {
