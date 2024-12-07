@@ -1,80 +1,104 @@
-const imageInput = document.getElementById('imageInput');
-const processButton = document.getElementById('processButton');
-const dataTable = document.getElementById('dataTable');
+const video = document.getElementById('video');
+const captureButton = document.getElementById('captureButton');
 const statusText = document.getElementById('statusText');
-
-const saveButton = document.getElementById('saveButton');
-const downloadButton = document.getElementById('downloadButton');
-const clearButton = document.getElementById('clearButton');
-
+const dataTable = document.getElementById('dataTable');
 const ocrResultSection = document.getElementById('ocr-result-section');
 const recognizedNumberEl = document.getElementById('recognizedNumber');
 const confirmButton = document.getElementById('confirmButton');
 const discardButton = document.getElementById('discardButton');
 
-let currentRecognizedNumber = null; // Speichert temporär die erkannte Artikelnummer
+const saveButton = document.getElementById('saveButton');
+const downloadButton = document.getElementById('downloadButton');
+const clearButton = document.getElementById('clearButton');
 
-processButton.addEventListener('click', handleImage);
+let currentRecognizedNumber = null;
+
+// Kamera-Starten
+navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+  .then(stream => {
+    video.srcObject = stream;
+    video.play();
+  })
+  .catch(err => {
+    console.error("Kamerazugriff verweigert oder nicht möglich:", err);
+    alert("Kamera kann nicht gestartet werden.");
+  });
+
+captureButton.addEventListener('click', captureFrame);
+confirmButton.addEventListener('click', confirmRecognition);
+discardButton.addEventListener('click', discardRecognition);
+
 saveButton.addEventListener('click', saveData);
 downloadButton.addEventListener('click', downloadCSV);
 clearButton.addEventListener('click', clearData);
 
-confirmButton.addEventListener('click', confirmRecognition);
-discardButton.addEventListener('click', discardRecognition);
-
-// Beim Laden vorhandene Daten anzeigen
-loadDataFromLocalStorage();
-
-// Validierung beim Focus-Verlust in der Tabelle
 dataTable.addEventListener('focusout', (e) => {
   if (e.target && e.target.closest('tr')) {
     validateRow(e.target.closest('tr'));
   }
 });
 
-async function handleImage() {
-  const file = imageInput.files[0];
-  if (!file) {
-    alert('Bitte zuerst ein Bild auswählen oder aufnehmen.');
-    return;
-  }
+loadDataFromLocalStorage();
 
-  statusText.textContent = 'Verarbeite Bild, bitte warten...';
+async function captureFrame() {
+  statusText.textContent = 'Verarbeite Bild...';
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const imageSrc = reader.result;
+  // Canvas erstellen für Snapshot
+  const canvas = document.createElement('canvas');
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  canvas.width = w;
+  canvas.height = h;
 
-    try {
-      const processedDataURL = await preprocessImage(imageSrc);
+  const ctx = canvas.getContext('2d');
+  // Aktuellen Frame zeichnen
+  ctx.drawImage(video, 0, 0, w, h);
 
-      // OCR ausführen
-      const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
-      console.log('Erkannter Text:', text);
+  // Jetzt den Bereich aus dem Overlay ausschneiden
+  // Overlay ist 200x100 Pixel in der Mitte des Videos
+  // Berechnen der Positionen: 
+  // Der Overlay Frame ist in der Mitte, wir gehen davon aus:
+  const frameWidth = 200;
+  const frameHeight = 100;
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const startX = centerX - frameWidth / 2;
+  const startY = centerY - frameHeight / 2;
 
-      const artikelnummer = extractArtikelnummer(text);
+  const frameData = ctx.getImageData(startX, startY, frameWidth, frameHeight);
 
-      if (artikelnummer) {
-        currentRecognizedNumber = artikelnummer;
-        recognizedNumberEl.textContent = artikelnummer;
-        ocrResultSection.style.display = 'block';
-        statusText.textContent = 'Artikelnummer erkannt. Bitte bestätigen oder verwerfen.';
-      } else {
-        currentRecognizedNumber = null;
-        ocrResultSection.style.display = 'none';
-        statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden.';
-      }
-    } catch (error) {
-      console.error('Fehler bei der Texterkennung:', error);
-      statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
+  // Neues Canvas für den Ausschnitt
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = frameWidth;
+  frameCanvas.height = frameHeight;
+  const frameCtx = frameCanvas.getContext('2d');
+  frameCtx.putImageData(frameData, 0, 0);
+
+  // Preprocessing (optional)
+  const processedDataURL = await preprocessImage(frameCanvas.toDataURL('image/png'));
+
+  try {
+    const { data: { text } } = await Tesseract.recognize(processedDataURL, 'deu');
+    console.log('Erkannter Text:', text);
+
+    const artikelnummer = extractArtikelnummer(text);
+    if (artikelnummer) {
+      currentRecognizedNumber = artikelnummer;
+      recognizedNumberEl.textContent = artikelnummer;
+      ocrResultSection.style.display = 'block';
+      statusText.textContent = 'Artikelnummer erkannt. Bitte bestätigen oder verwerfen.';
+    } else {
+      currentRecognizedNumber = null;
+      ocrResultSection.style.display = 'none';
+      statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden.';
     }
-  };
-
-  reader.readAsDataURL(file);
+  } catch (error) {
+    console.error('Fehler bei der Texterkennung:', error);
+    statusText.textContent = 'Fehler bei der Texterkennung. Siehe Konsole.';
+  }
 }
 
 function extractArtikelnummer(text) {
-  // Regex für Format: 6 Ziffern, Bindestrich, 6 Ziffern
   const match = text.match(/\b\d{6}-\d{6}\b/);
   return match ? match[0] : null;
 }
@@ -88,13 +112,26 @@ function addRow(artikelnummer, anzahl) {
   `;
   dataTable.appendChild(row);
 
-  // Event-Listener für Löschen-Button
   row.querySelector('.delete-button').addEventListener('click', () => {
     dataTable.removeChild(row);
   });
 
-  // Direkt validieren
   validateRow(row);
+}
+
+function confirmRecognition() {
+  if (currentRecognizedNumber) {
+    addRow(currentRecognizedNumber, 0);
+  }
+  ocrResultSection.style.display = 'none';
+  currentRecognizedNumber = null;
+  statusText.textContent = '';
+}
+
+function discardRecognition() {
+  ocrResultSection.style.display = 'none';
+  currentRecognizedNumber = null;
+  statusText.textContent = '';
 }
 
 function saveData() {
@@ -150,24 +187,6 @@ function clearData() {
   }
 }
 
-function confirmRecognition() {
-  if (currentRecognizedNumber) {
-    addRow(currentRecognizedNumber, 0);
-  }
-  // Danach das Result-Feld ausblenden und Variablen zurücksetzen
-  ocrResultSection.style.display = 'none';
-  currentRecognizedNumber = null;
-  statusText.textContent = '';
-}
-
-function discardRecognition() {
-  // Abbrechen, nichts hinzufügen
-  ocrResultSection.style.display = 'none';
-  currentRecognizedNumber = null;
-  statusText.textContent = '';
-}
-
-// Validierung der Artikelnummern
 function validateRow(row) {
   const artikelnummer = row.children[0].textContent.trim();
   const artikelValid = /\b\d{6}-\d{6}\b/.test(artikelnummer);
@@ -179,16 +198,16 @@ function validateRow(row) {
   }
 }
 
-// Einfache Bildvorverarbeitung (Grayscale + Thresholding + Skalierung)
+// Einfache Bildvorverarbeitung
 async function preprocessImage(dataURL) {
   const img = new Image();
   return new Promise((resolve) => {
     img.onload = () => {
       const canvas = document.createElement('canvas');
 
-      // Skalierung auf Breite 800px für bessere Performance (anpassbar)
-      const scale = 800 / img.width;
-      const newWidth = 800;
+      // Skalierung auf kleinere Größe für OCR
+      const scale = 2; // einfaches Beispiel: 2x vergrößern oder anpassen
+      const newWidth = img.width * scale;
       const newHeight = img.height * scale;
 
       canvas.width = newWidth;
@@ -197,12 +216,10 @@ async function preprocessImage(dataURL) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, newWidth, newHeight);
 
-      // Pixel auslesen
       const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
       const data = imageData.data;
 
-      // Graustufen + einfaches Thresholding
-      // Threshold = 128 als Beispiel
+      // Graustufen & Threshold
       const threshold = 128;
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
