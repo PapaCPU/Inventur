@@ -137,6 +137,34 @@
       margin-top: 2rem;
       font-size: 0.9rem;
     }
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 999; 
+      left: 0; 
+      top: 0; 
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto; 
+      padding: 20px; 
+      border: 1px solid #888; 
+      width: 80%; 
+      max-width: 300px;
+      border-radius: 8px;
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      box-sizing: border-box;
+      text-align: center;
+    }
     @media (max-width: 600px) {
       .container {
         margin: 1rem;
@@ -163,8 +191,6 @@
     <div id="ocr-result-section">
       <img id="captured-image" src="" alt="Gescannter Ausschnitt">
       <p>Erkannte Artikelnummer: <span id="recognizedNumber"></span></p>
-      <button id="confirmButton" class="button confirm-button">Bestätigen</button>
-      <button id="discardButton" class="button delete-button">Verwerfen</button>
     </div>
     <table id="dataTable"></table>
     <div class="actions">
@@ -176,6 +202,16 @@
   <footer>
     &copy; 2024 Inventur Scanner
   </footer>
+  
+  <div id="quantityModal" class="modal">
+    <div class="modal-content">
+      <h3>Stückzahl eingeben</h3>
+      <p id="modalCode"></p>
+      <input type="number" id="quantityInput" placeholder="Anzahl" min="0">
+      <button id="quantityConfirm" class="button confirm-button" style="margin-top:1rem;">OK</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
   <script>
     let videoStream = null;
@@ -185,12 +221,16 @@
     const dataTable = document.getElementById('dataTable');
     const ocrResultSection = document.getElementById('ocr-result-section');
     const recognizedNumberEl = document.getElementById('recognizedNumber');
-    const confirmButton = document.getElementById('confirmButton');
-    const discardButton = document.getElementById('discardButton');
     const saveButton = document.getElementById('saveButton');
     const downloadButton = document.getElementById('downloadButton');
     const clearButton = document.getElementById('clearButton');
     const capturedImageEl = document.getElementById('captured-image');
+
+    const quantityModal = document.getElementById('quantityModal');
+    const quantityConfirm = document.getElementById('quantityConfirm');
+    const quantityInput = document.getElementById('quantityInput');
+    const modalCode = document.getElementById('modalCode');
+
     let currentRecognizedNumber = null;
 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
@@ -205,8 +245,7 @@
       });
 
     captureButton.addEventListener('click', captureFrame);
-    confirmButton.addEventListener('click', confirmRecognition);
-    discardButton.addEventListener('click', discardRecognition);
+    quantityConfirm.addEventListener('click', confirmQuantity);
     saveButton.addEventListener('click', saveData);
     downloadButton.addEventListener('click', downloadCSV);
     clearButton.addEventListener('click', clearData);
@@ -229,7 +268,6 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, w, h);
 
-      // Berechnungen für das Rechteck
       const frameWidth = 200;
       const frameHeight = 100;
       const centerX = w / 2;
@@ -244,21 +282,23 @@
       const frameCtx = frameCanvas.getContext('2d');
       frameCtx.putImageData(frameData, 0, 0);
 
-      // Zeige den Ausschnitt
       capturedImageEl.src = frameCanvas.toDataURL('image/png');
 
-      // Direkte OCR ohne Vorverarbeitung
+      // Versuche kleine Verbesserung: OCR nur auf Ziffern und Bindestrich
+      // psm=7 (Zeile), tessedit_char_whitelist reduziert den Suchraum
       try {
         const { data: { text } } = await Tesseract.recognize(frameCanvas.toDataURL('image/png'), 'eng', {
           tessedit_char_whitelist: '0123456789-',
           psm: 7
         });
+        
         const artikelnummer = extractArtikelnummer(text);
         if (artikelnummer) {
           currentRecognizedNumber = artikelnummer;
           recognizedNumberEl.textContent = artikelnummer;
           ocrResultSection.style.display = 'block';
-          statusText.textContent = 'Artikelnummer erkannt. Bitte bestätigen oder verwerfen.';
+          statusText.textContent = 'Artikelnummer erkannt. Bitte Stückzahl eingeben.';
+          showQuantityModal(artikelnummer);
         } else {
           currentRecognizedNumber = null;
           ocrResultSection.style.display = 'none';
@@ -275,6 +315,28 @@
       return match ? match[0] : null;
     }
 
+    function showQuantityModal(code) {
+      modalCode.textContent = `Code: ${code}`;
+      quantityInput.value = '';
+      quantityModal.style.display = 'block';
+      quantityInput.focus();
+    }
+
+    function confirmQuantity() {
+      const qty = quantityInput.value.trim();
+      if (!qty || isNaN(qty)) {
+        alert('Bitte eine gültige Stückzahl eingeben.');
+        return;
+      }
+      if (currentRecognizedNumber) {
+        addRow(currentRecognizedNumber, qty);
+      }
+      quantityModal.style.display = 'none';
+      currentRecognizedNumber = null;
+      statusText.textContent = '';
+      ocrResultSection.style.display = 'none';
+    }
+
     function addRow(artikelnummer, anzahl) {
       const row = document.createElement('tr');
       row.innerHTML = `
@@ -287,21 +349,6 @@
         dataTable.removeChild(row);
       });
       validateRow(row);
-    }
-
-    function confirmRecognition() {
-      if (currentRecognizedNumber) {
-        addRow(currentRecognizedNumber, 0);
-      }
-      ocrResultSection.style.display = 'none';
-      currentRecognizedNumber = null;
-      statusText.textContent = '';
-    }
-
-    function discardRecognition() {
-      ocrResultSection.style.display = 'none';
-      currentRecognizedNumber = null;
-      statusText.textContent = '';
     }
 
     function saveData() {
@@ -360,6 +407,13 @@
         row.children[0].classList.add('invalid');
       } else {
         row.children[0].classList.remove('invalid');
+      }
+    }
+
+    // Modal schließen, falls man außerhalb klickt
+    window.onclick = function(event) {
+      if (event.target == quantityModal) {
+        quantityModal.style.display = "none";
       }
     }
   </script>
