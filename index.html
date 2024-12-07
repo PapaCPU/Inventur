@@ -1,63 +1,393 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Inventur App mit Kamera</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Artikelscanner</title>
+    <script src="https://unpkg.com/tesseract.js@2.1.4/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #d3d3d3;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        #video-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        #video {
+            width: 100%;
+            height: auto;
+        }
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80%;
+            max-width: 300px;
+            height: 100px;
+            transform: translate(-50%, -50%);
+            border: 2px solid red;
+        }
+        #menu, #list-section, #back-button {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .button {
+            background-color: #f0f8ff;
+            border: none;
+            color: black;
+            padding: 20px 40px;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            font-size: 24px;
+            margin: 20px auto;
+            cursor: pointer;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 400px;
+        }
+        #data-display {
+            margin-top: 20px;
+            max-width: 600px;
+            margin: auto;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        #export-button {
+            margin-top: 20px;
+        }
+        #back-button {
+            display: none;
+            margin: 10px auto;
+        }
+        .action-buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+        @media (max-width: 600px) {
+            .button {
+                font-size: 18px;
+                padding: 15px 30px;
+            }
+            #data-display {
+                max-height: 200px;
+            }
+        }
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        input[type=number] {
+            font-size: 16px;
+            inputmode: numeric;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>Inventur App</h1>
-  </header>
+    <div id="menu">
+        <button class="button" onclick="startNewList()">Neue Liste</button>
+        <button class="button" onclick="showList()">Bearbeiten</button>
+    </div>
+    <div id="back-button">
+        <button class="button" onclick="goBack()">Zurück</button>
+    </div>
+    <div id="video-container" style="display:none;">
+        <video id="video" autoplay playsinline></video>
+        <div id="overlay"></div>
+    </div>
+    <button id="capture-button" class="button" style="display:none;" onclick="captureAndRecognize()">Scannen</button>
+    <div id="input-modal" class="modal">
+        <div class="modal-content">
+            <h2>Stückzahl eingeben</h2>
+            <p>Gescannter Code: <span id="scanned-code"></span></p>
+            <input type="number" id="quantity" name="quantity" inputmode="numeric">
+            <button class="button" onclick="submitData()">Bestätigen</button>
+            <button class="button" onclick="closeModal()">Abbrechen</button>
+        </div>
+    </div>
+    <div id="list-section" style="display: none;"></div>
+    <div id="data-display"></div>
+    <button id="export-button" class="button" onclick="exportData()" style="display: none;">Daten exportieren</button>
+    <div id="popup" style="display: none;">
+        <p>Möchten Sie diesen Eintrag wirklich löschen?</p>
+        <button class="button" onclick="confirmDelete(true)">Ja</button>
+        <button class="button" onclick="confirmDelete(false)">Nein</button>
+    </div>
+    <script>
+        let scannedCode = '';
+        let isEditing = false;
+        let editingIndex = -1;
+        let deleteIndex = -1;
+        let videoStream = null;
 
-  <main class="container">
-    <section id="camera-section">
-      <div class="video-container">
-        <video id="video" playsinline autoplay></video>
-        <div class="overlay-frame"></div>
-      </div>
-      <button id="captureButton" class="button primary-button">Foto aufnehmen</button>
-    </section>
+        function startNewList() {
+            localStorage.removeItem('scannedData');
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('video-container').style.display = 'block';
+            document.getElementById('back-button').style.display = 'block';
+            document.getElementById('capture-button').style.display = 'block';
+            startVideo();
+        }
 
-    <section id="status-section">
-      <p id="statusText"></p>
-    </section>
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => {
+                videoStream = stream;
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(err => {
+                console.error(err);
+            });
+        }
 
-    <section id="ocr-result-section" style="display:none;">
-      <h2>Erkannte Artikelnummer:</h2>
-      <p id="recognizedNumber"></p>
-      <div class="actions">
-        <button id="confirmButton" class="button confirm-button">Bestätigen</button>
-        <button id="discardButton" class="button delete-button">Verwerfen</button>
-      </div>
-    </section>
+        function showList() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('list-section').style.display = 'block';
+            document.getElementById('back-button').style.display = 'block';
+            displayList();
+        }
 
-    <section id="table-section">
-      <table>
-        <thead>
-          <tr>
-            <th>Artikelnummer</th>
-            <th>Anzahl</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody id="dataTable"></tbody>
-      </table>
-    </section>
+        function displayList() {
+            const listSection = document.getElementById('list-section');
+            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
+            if (existingData.length === 0) {
+                listSection.innerHTML = '<p>Keine gespeicherten Listen.</p>';
+                return;
+            }
+            let listHtml = '<table><tr><th>Liste</th><th>Aktion</th></tr>';
+            existingData.forEach((list, index) => {
+                listHtml += `<tr><td>${list.name}</td>
+                <td class="action-buttons">
+                <button class="button" onclick="continueList(${index})">Weiter bearbeiten</button>
+                <button class="button" onclick="deleteList(${index})">Liste löschen</button>
+                </td></tr>`;
+            });
+            listHtml += '</table>';
+            listSection.innerHTML = listHtml;
+        }
 
-    <section id="menu-section">
-      <button id="saveButton" class="button primary-button">Daten speichern</button>
-      <button id="downloadButton" class="button">CSV herunterladen</button>
-      <button id="clearButton" class="button delete-button">Daten löschen</button>
-    </section>
-  </main>
+        function continueList(index) {
+            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
+            localStorage.setItem('scannedData', JSON.stringify(existingData[index].data));
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('list-section').style.display = 'none';
+            document.getElementById('video-container').style.display = 'block';
+            document.getElementById('back-button').style.display = 'block';
+            document.getElementById('capture-button').style.display = 'block';
+            startVideo();
+            displayData();
+        }
 
-  <footer>
-    <p>&copy; 2024 Inventur App</p>
-  </footer>
+        function deleteList(index) {
+            if (confirm("Sind Sie sicher, dass Sie diese Liste löschen möchten?")) {
+                let existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
+                existingData.splice(index, 1);
+                localStorage.setItem('scannedDataList', JSON.stringify(existingData));
+                displayList();
+            }
+        }
 
-  <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
-  <script src="script.js"></script>
+        function captureAndRecognize() {
+            const video = document.getElementById('video');
+            const overlay = document.getElementById('overlay');
+            const canvas = document.createElement('canvas');
+            const rect = overlay.getBoundingClientRect();
+            const videoRect = video.getBoundingClientRect();
+
+            const scaleX = video.videoWidth / videoRect.width;
+            const scaleY = video.videoHeight / videoRect.height;
+
+            const cropX = (rect.left - videoRect.left) * scaleX;
+            const cropY = (rect.top - videoRect.top) * scaleY;
+            const cropWidth = rect.width * scaleX;
+            const cropHeight = rect.height * scaleY;
+
+            canvas.width = cropWidth;
+            canvas.height = cropHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+            Tesseract.recognize(canvas.toDataURL('image/png'), 'eng', { logger: m => {} })
+            .then(({ data: { text } }) => {
+                const match = text.match(/\b\d{6}-\d{6}\b/);
+                if (match) {
+                    scannedCode = match[0];
+                    document.getElementById("scanned-code").textContent = scannedCode;
+                    document.getElementById("input-modal").style.display = "block";
+                    document.getElementById('quantity').value = '';
+                    document.getElementById('quantity').focus();
+                } else {
+                    alert('Keine gültige Artikelnummer gefunden.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+            });
+        }
+
+        function submitData() {
+            const quantity = document.getElementById('quantity').value;
+            if (scannedCode && quantity) {
+                let data = JSON.parse(localStorage.getItem('scannedData') || '[]');
+                if (isEditing) {
+                    data[editingIndex].quantity = quantity;
+                    isEditing = false;
+                    editingIndex = -1;
+                } else {
+                    data.push({ code: scannedCode, quantity: quantity });
+                }
+                localStorage.setItem('scannedData', JSON.stringify(data));
+                displayData();
+                closeModal();
+            } else {
+                alert('Bitte scannen Sie einen Code und geben Sie eine Stückzahl ein.');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById("input-modal").style.display = "none";
+        }
+
+        function displayData() {
+            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
+            const display = document.getElementById('data-display');
+            if (data.length === 0) {
+                display.innerHTML = '<p>Keine gespeicherten Daten.</p>';
+                document.getElementById('export-button').style.display = 'none';
+                return;
+            }
+            let tableHtml = '<table><tr><th>Code</th><th>Stückzahl</th><th>Aktion</th></tr>';
+            data.forEach((row, index) => {
+                tableHtml += `<tr><td>${row.code}</td><td>${row.quantity}</td>
+                <td class="action-buttons">
+                <button class="icon-button" onclick="editItem(${index})">✏️</button>
+                <button class="icon-button" onclick="confirmDeleteItem(${index})">🗑️</button>
+                </td></tr>`;
+            });
+            tableHtml += '</table>';
+            display.innerHTML = tableHtml;
+            if (data.length > 0) {
+                document.getElementById('export-button').style.display = 'block';
+            }
+        }
+
+        function editItem(index) {
+            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
+            const item = data[index];
+            scannedCode = item.code;
+            document.getElementById('scanned-code').textContent = scannedCode;
+            document.getElementById('quantity').value = item.quantity;
+            document.getElementById('input-modal').style.display = 'block';
+            document.getElementById('quantity').focus();
+            document.getElementById('quantity').select();
+            isEditing = true;
+            editingIndex = index;
+        }
+
+        function confirmDeleteItem(index) {
+            deleteIndex = index;
+            document.getElementById('popup').style.display = 'block';
+        }
+
+        function confirmDelete(confirm) {
+            if (confirm && deleteIndex !== -1) {
+                let data = JSON.parse(localStorage.getItem('scannedData') || '[]');
+                data.splice(deleteIndex, 1);
+                localStorage.setItem('scannedData', JSON.stringify(data));
+                displayData();
+            }
+            document.getElementById('popup').style.display = 'none';
+            deleteIndex = -1;
+        }
+
+        function exportData() {
+            const data = JSON.parse(localStorage.getItem('scannedData') || '[]');
+            if (data.length === 0) {
+                alert('Keine Daten zum Exportieren');
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,code,quantity\n";
+            data.forEach(row => {
+                csvContent += `${row.code},${row.quantity}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `scanned_data_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            saveList(data);
+        }
+
+        function saveList(data) {
+            const listName = `Liste_${new Date().toISOString().slice(0, 10)}`;
+            const existingData = JSON.parse(localStorage.getItem('scannedDataList') || '[]');
+            existingData.push({ name: listName, data: data });
+            if (existingData.length > 10) {
+                existingData.shift();
+            }
+            localStorage.setItem('scannedDataList', JSON.stringify(existingData));
+        }
+
+        function goBack() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('video-container').style.display = 'none';
+            document.getElementById('capture-button').style.display = 'none';
+            document.getElementById('input-modal').style.display = 'none';
+            document.getElementById('list-section').style.display = 'none';
+            document.getElementById('back-button').style.display = 'none';
+            displayData();
+        }
+
+        window.onload = () => {
+            document.getElementById('menu').style.display = 'block';
+        };
+    </script>
 </body>
 </html>
