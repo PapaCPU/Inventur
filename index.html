@@ -206,7 +206,6 @@
     &copy; 2024 Inventur Scanner
   </footer>
   
-  <!-- Modals -->
   <div id="quantityModal" class="modal">
     <div class="modal-content">
       <h3>Stückzahl eingeben</h3>
@@ -219,7 +218,7 @@
   <div id="manualModal" class="modal">
     <div class="modal-content">
       <h3>Manuell hinzufügen</h3>
-      <p>Artikelnummer (Format: 123456-123456):</p>
+      <p>Artikelnummer (auch mit Format: 123456-123456, PHD 000089, LAN-123456):</p>
       <input type="text" id="manualCodeInput" placeholder="Artikelnummer">
       <p>Stückzahl:</p>
       <input type="number" id="manualQuantityInput" placeholder="Anzahl" min="0">
@@ -254,7 +253,7 @@
 
     let currentRecognizedNumber = null;
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'environment' }, audio: false })
       .then(stream => {
         videoStream = stream;
         video.srcObject = stream;
@@ -309,7 +308,7 @@
 
       try {
         const { data: { text } } = await Tesseract.recognize(frameCanvas.toDataURL('image/png'), 'eng', {
-          tessedit_char_whitelist: '0123456789-',
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
           psm: 7
         });
         
@@ -323,7 +322,7 @@
         } else {
           currentRecognizedNumber = null;
           ocrResultSection.style.display = 'none';
-          statusText.textContent = 'Keine gültige Artikelnummer im Format 123456-123456 gefunden. Sie können die Nummer manuell hinzufügen.';
+          statusText.textContent = 'Keine gültige Artikelnummer gefunden. Sie können die Nummer manuell hinzufügen.';
         }
       } catch (error) {
         console.error('Fehler bei der Texterkennung:', error);
@@ -332,8 +331,9 @@
     }
 
     function extractArtikelnummer(text) {
-      const match = text.match(/\b\d{6}-\d{6}\b/);
-      return match ? match[0] : null;
+      const pattern = /\b(?:[A-Z]{3}[- ]?\d{6}|\d{6}-\d{6})\b/;
+      const match = text.match(pattern);
+      return match ? match[0].replace(/\s+/g, '') : null;
     }
 
     function showQuantityModal(code) {
@@ -423,7 +423,8 @@
 
     function validateRow(row) {
       const artikelnummer = row.children[0].textContent.trim();
-      const artikelValid = /\b\d{6}-\d{6}\b/.test(artikelnummer);
+      const pattern = /^(?:[A-Z]{3}[- ]?\d{6}|\d{6}-\d{6})$/;
+      const artikelValid = pattern.test(artikelnummer);
       if (!artikelValid) {
         row.children[0].classList.add('invalid');
       } else {
@@ -431,7 +432,6 @@
       }
     }
 
-    // Modal schließen, falls man außerhalb klickt
     window.onclick = function(event) {
       if (event.target == quantityModal) {
         quantityModal.style.display = "none";
@@ -449,10 +449,10 @@
     }
 
     function confirmManualAdd() {
-      const code = manualCodeInput.value.trim();
+      const code = manualCodeInput.value.trim().replace(/\s+/g, '');
       const qty = manualQuantityInput.value.trim();
-      if (!/\b\d{6}-\d{6}\b/.test(code)) {
-        alert('Bitte eine gültige Artikelnummer eingeben (Format: 123456-123456).');
+      if (!/^(?:[A-Z]{3}[-]?\d{6}|\d{6}-\d{6})$/.test(code)) {
+        alert('Bitte eine gültige Artikelnummer eingeben (z.B. 123456-123456, PHD000089, LAN-123456).');
         return;
       }
       if (!qty || isNaN(qty)) {
