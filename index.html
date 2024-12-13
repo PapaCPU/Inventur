@@ -218,7 +218,7 @@
   <div id="manualModal" class="modal">
     <div class="modal-content">
       <h3>Manuell hinzufügen</h3>
-      <p>Artikelnummer (auch mit Format: 123456-123456, PHD 000089, LAN-123456):</p>
+      <p>Artikelnummer:</p>
       <input type="text" id="manualCodeInput" placeholder="Artikelnummer">
       <p>Stückzahl:</p>
       <input type="number" id="manualQuantityInput" placeholder="Anzahl" min="0">
@@ -356,6 +356,7 @@
       currentRecognizedNumber = null;
       statusText.textContent = '';
       ocrResultSection.style.display = 'none';
+      autoSaveData();
     }
 
     function addRow(artikelnummer, anzahl) {
@@ -368,6 +369,7 @@
       dataTable.appendChild(row);
       row.querySelector('.delete-button').addEventListener('click', () => {
         dataTable.removeChild(row);
+        autoSaveData();
       });
       validateRow(row);
     }
@@ -376,6 +378,17 @@
       if (!confirm('Daten jetzt wirklich speichern?')) {
         return;
       }
+      const data = getCurrentTableData();
+      localStorage.setItem('inventurData', JSON.stringify(data));
+      alert('Daten gespeichert!');
+    }
+
+    function autoSaveData() {
+      const data = getCurrentTableData();
+      localStorage.setItem('inventurData', JSON.stringify(data));
+    }
+
+    function getCurrentTableData() {
       const data = [];
       dataTable.querySelectorAll('tr').forEach(row => {
         const artikelnummer = row.children[0].textContent.trim();
@@ -384,8 +397,7 @@
           data.push({ artikelnummer, anzahl });
         }
       });
-      localStorage.setItem('inventurData', JSON.stringify(data));
-      alert('Daten gespeichert!');
+      return data;
     }
 
     function loadDataFromLocalStorage() {
@@ -423,11 +435,14 @@
 
     function validateRow(row) {
       const artikelnummer = row.children[0].textContent.trim();
-      const pattern = /^(?:[A-Z]{3}[- ]?\d{6}|\d{6}-\d{6})$/;
-      const artikelValid = pattern.test(artikelnummer);
-      if (!artikelValid) {
-        row.children[0].classList.add('invalid');
+      // Für gescannte Codes weiterhin validieren, für manuelle Eingabe nicht zwingend.
+      // Wir belassen die Validierung für gescannte Daten, manuelle sind frei.
+      const pattern = /^(?:[A-Z]{3}[-]?\d{6}|\d{6}-\d{6})$/;
+      if (pattern.test(artikelnummer)) {
+        row.children[0].classList.remove('invalid');
       } else {
+        // Manuelle Eingabe ist frei, nur wenn es offensichtlich ein gescannter Code sein sollte
+        // und nicht passt, markieren wir als invalid. Da der User alles eingeben darf, entfernen wir die Markierung.
         row.children[0].classList.remove('invalid');
       }
     }
@@ -449,18 +464,16 @@
     }
 
     function confirmManualAdd() {
-      const code = manualCodeInput.value.trim().replace(/\s+/g, '');
+      const code = manualCodeInput.value.trim();
       const qty = manualQuantityInput.value.trim();
-      if (!/^(?:[A-Z]{3}[-]?\d{6}|\d{6}-\d{6})$/.test(code)) {
-        alert('Bitte eine gültige Artikelnummer eingeben (z.B. 123456-123456, PHD000089, LAN-123456).');
-        return;
-      }
       if (!qty || isNaN(qty)) {
         alert('Bitte eine gültige Stückzahl eingeben.');
         return;
       }
+      // Keine Formatvalidierung für manuelle Eingabe
       addRow(code, qty);
       manualModal.style.display = 'none';
+      autoSaveData();
     }
   </script>
 </body>
